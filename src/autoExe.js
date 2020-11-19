@@ -1,11 +1,11 @@
 
-const { exec } = require("child_process")
 const path = require("path")
 const { promisify } = require("util")
-const writeFile=promisify(require("fs").writeFile)
-const stat=promisify(require("fs").stat)
-const readdir=promisify(require("fs").readdir)
-const exists=promisify(require("fs").exists)
+const writeFile = promisify(require("fs").writeFile)
+const stat = promisify(require("fs").stat)
+const statSync=require("fs").statSync
+const readdir = promisify(require("fs").readdir)
+const exists = promisify(require("fs").exists)
 module.exports = {
     /**
      * 生成测试文件名
@@ -39,27 +39,28 @@ test('测试${methodName}',()=>{
     async createTestCodeFile(outputFileName, testCode) {
         await writeFile(outputFileName, testCode)
     },
-    async exec(outputDir){
-        let files=await readdir(outputDir)
-        files.filter(item=>!item.includes(".test.js")).forEach(async file=>{
-            let outputFileName= this.createTestFileName(`${outputDir}/${file}`)
-            let isExist=await exists(outputFileName)
-            console.log(outputFileName)
-            if(isExist){
+    async exec(outputDir) {
+        let files = await readdir(outputDir)
+        files.filter(item => {
+            return !item.includes(".test.js") && statSync(`${outputDir}/${item}`).isFile()
+        }).forEach(async file => {
+            let outputFileName = this.createTestFileName(`${outputDir}/${file}`)
+            let isExist = await exists(outputFileName)
+            if (isExist) {
                 console.log(`${file}的测试文件已存在。。。`)
                 return false
             }
-            let file_module=require(`${outputDir}/${file}`)
-            let code="" 
-            if(typeof file_module =="object"){
-                Object.keys(file_module).forEach((key)=>{
-                    code+=this.createTestCode(key,file,true)
+            let file_module = require(`${outputDir}/${file}`)
+            let code = ""
+            if (typeof file_module == "object") {
+                Object.keys(file_module).forEach((key) => {
+                    code += this.createTestCode(key, file, true)
                 })
             }
-            else if(typeof file_module=="function"){
-                code+=this.createTestCode(file.replace(path.extname(file),""),file,false)
+            else if (typeof file_module == "function") {
+                code += this.createTestCode(file.replace(path.extname(file), ""), file, false)
             }
-            this.createTestCodeFile(outputFileName,code)
+            this.createTestCodeFile(outputFileName, code)
         })
     }
 }
